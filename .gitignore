@@ -1,0 +1,12 @@
+## ignore all directories called `data` (usually containing data, sometimes lots of it)
+data/
+cache/
+UCI HAR Dataset/
+UCI\ HAR\ Dataset/
+
+## R hidden files
+.RData
+.Rhistory
+
+## Some zipped files
+Data.zip
