@@ -20,7 +20,9 @@ The purpose of this project is to show how to to collect, clean, and  work with 
 ## How the different scripts fit together
 
 - `downloadData.R` Downloads and unzips the data from the above url and stores it in the `current directory for further analysis
-- `run_analysis.R` contains the full code and can be run to reproduce the results
+- `run_analysis.R` contains the *full code and can be run to reproduce the results*
+- `run_analysis.md` is here mainly for convenience. You can click to view it 
+  here before downloading the `R` script
 - `CodeBook.md` describes the variables, the data, and transformations performed to clean up the data
-- `// TODO`
+
 

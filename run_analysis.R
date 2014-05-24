@@ -169,7 +169,7 @@ dt$Axis <- factor(logical %*% levels, labels = c(NA, "X", "Y", "Z"))
 ################# FINALLY, CREATE A TIDY DATASET #########################
 
 dt[ ,activity :=  factor(dt$activity.name)]
-setkey(dt, subject, activity, Domain, Acceleration, Instrument, 
+setkey(dt, subject, activity, Acceleration, Domain, Instrument, 
        Jerk, Magnitude, Statistic, Axis)
 TIDY <- dt[, list(count = .N, average = mean(value)), by = key(dt)]
 

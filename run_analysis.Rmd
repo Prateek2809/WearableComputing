@@ -1,25 +1,35 @@
-run_analysis, markdown version
-========================================================
-
-This is th markdown version of the `run_analysis.R` script. It's here for 
-convenience - it may be easier to look at this to get a feel for what's involved
-in this project than to read and run the script right away.
-
-### Step 0: Read in the data 
-Assume the data have been downloaded into the current folder. If not, see
-`downloadData.R` on how to do this
-
 ```{r setup, include=FALSE}
 # set global chunk options
 opts_chunk$set(cache=TRUE)
 ```
 
+run_analysis, markdown version
+========================================================
+
+This is the markdown version of the `run_analysis.R` script. It's here for 
+convenience - it may be easier to look at this to get a feel for what's involved
+in this project before reading and running the script.
+
+### Step 0: Read in the data 
+
+The dataset can been downloaded by running `downloadData.R`, which downloads and
+stores the data locally in the current directory's `UCI HAR Dataset` folder:
+
+```{r downloadData, cache=TRUE}
+if ( !file.exists("UCI HAR Dataset") )  downloadData()
+```
+
+We'll be using the following libraries to process the data. Using `data.table`
+instead of `data.frame`s speeds up much of the processing of this large dataset:
+
+```{r load libraries}
+library(data.table)
+library(reshape2)
+```
+
 ```{r readData, cache=TRUE}
 path <- file.path("./", "UCI HAR Dataset")
 list.files(path, recursive = TRUE)
-
-# use `data.table` library to read data (instead of `data frames`; it's faster)
-library(data.table)
 
 # read the subject files (`subject IDs`):
 DT.subject.ID.Train <- fread(file.path(path, "train", "subject_train.txt"))
@@ -38,8 +48,7 @@ DT.test <- data.table(df)
 ```
 
 ### Step 1: Merge the training and the test sets to create one data set.
-```{r}
-library(data.table)
+```{r mergeData}
 # subject IDs:
 DT.All.subject.IDs <- rbind(DT.subject.ID.Train, DT.subject.ID.Test)
 setnames(DT.All.subject.IDs, "V1", "subject")  #10, 299 total subjects
@@ -71,7 +80,7 @@ The `features.txt` file lists the names of all features. From these names
 we will extract the ones that contain `mean` and `std`. We have 66 features that
 have either `mean` or `std` in their names. 
 
-```{r}
+```{r getMeanAndSTD}
 DT.features <- fread(file.path(path, "features.txt"))
 setnames(DT.features, names(DT.features), c("feature.number", "feature.name"))
 DT.features <- DT.features[grepl("mean\\(\\)|std\\(\\)", feature.name)]
@@ -141,7 +150,7 @@ In particular, we will be selecting observations based on:
 
 dt <- DT ### just a copy to experiment
 
-#First, make `feature.name` a factor: 
+#First, make `feature.name` and `activity.name` factors: 
 dt[ ,feature := factor(dt$feature.name)];
 dt[ ,activity :=  factor(dt$activity.name)];
 
@@ -183,7 +192,7 @@ dt$Axis <- factor(logical %*% levels, labels = c(NA, "X", "Y", "Z"))
 ```{r, out.width=90}
 ####################### FINALLY, CREATE THE TIDY DATASET #######################
 
-setkey(dt, subject, activity, Domain, Acceleration, Instrument, 
+setkey(dt, subject, activity, Domain, Instrument, Acceleration,
        Jerk, Magnitude, Statistic, Axis)
 TIDY <- dt[, list(count = .N, average = mean(value)), by = key(dt)]
 

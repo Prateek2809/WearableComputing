@@ -1,15 +1,32 @@
+
+
+
 run_analysis, markdown version
 ========================================================
 
-This is th markdown version of the `run_analysis.R` script. It's here for 
+This is the markdown version of the `run_analysis.R` script. It's here for 
 convenience - it may be easier to look at this to get a feel for what's involved
-in this project than to read and run the script right away.
+in this project before reading and running the script.
 
 ### Step 0: Read in the data 
-Assume the data have been downloaded into the current folder. If not, see
-`downloadData.R` on how to do this
+
+The dataset can been downloaded by running `downloadData.R`, which downloads and
+stores the data locally in the current directory's `UCI HAR Dataset` folder:
 
 
+```r
+if (!file.exists("UCI HAR Dataset")) downloadData()
+```
+
+
+We'll be using the following libraries to process the data. Using `data.table`
+instead of `data.frame`s speeds up much of the processing of this large dataset:
+
+
+```r
+library(data.table)
+library(reshape2)
+```
 
 
 
@@ -51,10 +68,6 @@ list.files(path, recursive = TRUE)
 
 ```r
 
-# use `data.table` library to read data (instead of `data frames`; it's
-# faster)
-library(data.table)
-
 # read the subject files (`subject IDs`):
 DT.subject.ID.Train <- fread(file.path(path, "train", "subject_train.txt"))
 DT.subject.ID.Test <- fread(file.path(path, "test", "subject_test.txt"))
@@ -75,7 +88,6 @@ DT.test <- data.table(df)
 ### Step 1: Merge the training and the test sets to create one data set.
 
 ```r
-library(data.table)
 # subject IDs:
 DT.All.subject.IDs <- rbind(DT.subject.ID.Train, DT.subject.ID.Test)
 setnames(DT.All.subject.IDs, "V1", "subject")  #10, 299 total subjects
@@ -348,7 +360,7 @@ In particular, we will be selecting observations based on:
 
 dt <- DT  ### just a copy to experiment
 
-# First, make `feature.name` a factor:
+# First, make `feature.name` and `activity.name` factors:
 dt[, `:=`(feature, factor(dt$feature.name))]
 dt[, `:=`(activity, factor(dt$activity.name))]
 
@@ -394,7 +406,7 @@ dt$Axis <- factor(logical %*% levels, labels = c(NA, "X", "Y", "Z"))
 ```r
 ####################### FINALLY, CREATE THE TIDY DATASET #######################
 
-setkey(dt, subject, activity, Domain, Acceleration, Instrument, Jerk, Magnitude, 
+setkey(dt, subject, activity, Domain, Instrument, Acceleration, Jerk, Magnitude, 
     Statistic, Axis)
 TIDY <- dt[, list(count = .N, average = mean(value)), by = key(dt)]
 
@@ -402,20 +414,20 @@ head(TIDY)
 ```
 
 ```
-##    subject activity Domain Acceleration Instrument Jerk Magnitude
-## 1:       1   LAYING   Time           NA  Gyroscope   NA        NA
-## 2:       1   LAYING   Time           NA  Gyroscope   NA        NA
-## 3:       1   LAYING   Time           NA  Gyroscope   NA        NA
-## 4:       1   LAYING   Time           NA  Gyroscope   NA        NA
-## 5:       1   LAYING   Time           NA  Gyroscope   NA        NA
-## 6:       1   LAYING   Time           NA  Gyroscope   NA        NA
+##    subject activity Domain    Instrument Acceleration Jerk Magnitude
+## 1:       1   LAYING   Time Accelerometer         Body   NA        NA
+## 2:       1   LAYING   Time Accelerometer         Body   NA        NA
+## 3:       1   LAYING   Time Accelerometer         Body   NA        NA
+## 4:       1   LAYING   Time Accelerometer         Body   NA        NA
+## 5:       1   LAYING   Time Accelerometer         Body   NA        NA
+## 6:       1   LAYING   Time Accelerometer         Body   NA        NA
 ##    Statistic Axis count  average
-## 1:      Mean    X    50 -0.01655
-## 2:      Mean    Y    50 -0.06449
-## 3:      Mean    Z    50  0.14869
-## 4:        SD    X    50 -0.87354
-## 5:        SD    Y    50 -0.95109
-## 6:        SD    Z    50 -0.90828
+## 1:      Mean    X    50  0.22160
+## 2:      Mean    Y    50 -0.04051
+## 3:      Mean    Z    50 -0.11320
+## 4:        SD    X    50 -0.92806
+## 5:        SD    Y    50 -0.83683
+## 6:        SD    Z    50 -0.82606
 ```
 
 ```r

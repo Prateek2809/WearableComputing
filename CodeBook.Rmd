@@ -5,9 +5,11 @@ Codebook
 ========
 
 ### Variables in the tidy dataset
-The cleaned dataset is saved in both `text` (`TIDY_HumanActivity.txt`) and `csv` 
-(`TIDY_HumanActivity.csv`) formats. `run_analysis.md` or `run_analysis.R` 
-contain details on dataset creation.
+The cleaned dataset contains 11,881 observations of 11 variables and is saved in both `text` 
+(`TIDY_HumanActivity.txt`) and `csv` (`TIDY_HumanActivity.csv`) formats. 
+
+`run_analysis.md` or `run_analysis.R` contain details on dataset creation. 
+
 
 Variable list and descriptions
 ------------------------------
@@ -25,12 +27,19 @@ Variable list and descriptions
 | Magnitude        | Magnitude of the signals
 | Axis             | 3-axial signals in the X, Y and Z directions (X, Y, or Z)
 | Count            | Number of data points used to compute `average`
-| Average          | Feature: Average of each variable for each activity and each subject
+| Average          | Average of each variable for each activity and each subject
 
 
-### The first few observations
+### TIDY data
+The first few observations of the TIDY dataset are prented below. The 
+`structure` of the data is also shown:
 
 ```{r}
 TIDY <- read.csv("TIDY_HumanActivity.csv", header=FALSE)
 head(TIDY, n=30)
+```
+
+### The structure of the data
+```{r}
+str(TIDY)
 ```
