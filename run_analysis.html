@@ -186,7 +186,7 @@ hljs.initHighlightingOnLoad();
 <h1>run_analysis, markdown version</h1>
 
 <p>This is th markdown version of the <code>run_analysis.R</code> script. It&#39;s here for 
-convenience - it may be easier to look at this to get a feel for what&#39;s invovled
+convenience - it may be easier to look at this to get a feel for what&#39;s involved
 in this project than to read and run the script right away.</p>
 
 <h3>Step 0: Read in the data</h3>
@@ -251,7 +251,8 @@ DT.test &lt;- data.table(df)
 
 <h3>Step 1: Merge the training and the test sets to create one data set.</h3>
 
-<pre><code class="r"># subject IDs:
+<pre><code class="r">library(data.table)
+# subject IDs:
 DT.All.subject.IDs &lt;- rbind(DT.subject.ID.Train, DT.subject.ID.Test)
 setnames(DT.All.subject.IDs, &quot;V1&quot;, &quot;subject&quot;)  #10, 299 total subjects
 
@@ -270,7 +271,7 @@ DT.All &lt;- cbind(DT.All, DT.All.labels)
 ################### good! this is the merged dataset we want ###################
 </code></pre>
 
-<p>We have <code>10,299</code> observations and <code>563</code> variables in the meged dataset. The 
+<p>We have <code>10,299</code> observations and <code>563</code> variables in the merged dataset. The 
 first variable in <code>DT.All</code> is <code>subject</code> (ID) and the last variable is the 
 <code>activity.label</code> (a number 1-6 that represents an activity). </p>
 
@@ -396,13 +397,14 @@ str(result)
 ##  - attr(*, &quot;.internal.selfref&quot;)=&lt;externalptr&gt;
 </code></pre>
 
-<h3>Step 3. Uses descriptive activity names to name the activities in the data set</h3>
+<h3>Step 3. Use descriptive activity names to name the activities in the data set</h3>
 
-<p>So far, our activity labels were some not-very-informative-to-the-unitiated 
+<p>So far, our activity labels were some not-very-informative-to-the-initiated 
 integers. We now set the more natural names for these labels. 
 <code>activity_labels.txt</code> contains such &#39;natural&#39; names: </p>
 
-<pre><code class="r">DT.activity.names &lt;- fread(file.path(path, &quot;activity_labels.txt&quot;))
+<pre><code class="r">path &lt;- file.path(&quot;./&quot;, &quot;UCI HAR Dataset&quot;)
+DT.activity.names &lt;- fread(file.path(path, &quot;activity_labels.txt&quot;))
 setnames(DT.activity.names, names(DT.activity.names), c(&quot;activity.label&quot;, &quot;activity.name&quot;))
 DT.activity.names
 </code></pre>
@@ -487,16 +489,94 @@ head(DT, n = 10)
 
 <h3>Step 5: Create a second, independent tidy data set with the average of each variable for each activity and each subject.</h3>
 
-<p>We will be looking at features and selecting observations based on</p>
+<p>Before computing the means, we will create a few variables based on the features.
+In particular, we will be selecting observations based on:</p>
 
 <ul>
-<li>wheather the feature comes from the <em>frequency</em> or the <em>time</em> domain</li>
-<li>wheather it comes from the <em>Accelerometer</em> or the <em>Gyroscope</em> (which instrument)</li>
-<li>wheather the acceleration is due to <em>Gravity</em> or <em>Body</em></li>
-<li>wheather the feature variable has <em>&ldquo;mean&rdquo;</em> or <em>&ldquo;std&rdquo;</em> in its name</li>
-<li>wheather the feature variable has <em>&ldquo;Jerk&rdquo;</em> or <em>&ldquo;Mag&rdquo;</em> (magnitude) in its name</li>
-<li>wheather it is an <em>-X</em>, <em>-Y</em>, or <em>-Z</em> spatial measurement</li>
+<li>whether the feature comes from the <em>frequency</em> or the <em>time</em> domain</li>
+<li>whether the feature was measured with the <em>Accelerometer</em> or the <em>Gyroscope</em> (which instrument)</li>
+<li>whether the acceleration is due to <em>Gravity</em> or <em>Body</em></li>
+<li>whether the feature variable has <em>&ldquo;mean&rdquo;</em> or <em>&ldquo;std&rdquo;</em> in its name</li>
+<li>whether the feature variable has <em>&ldquo;Jerk&rdquo;</em> or <em>&ldquo;Mag&rdquo;</em> (magnitude) in its name</li>
+<li>whether it is an <em>-X</em>, <em>-Y</em>, or <em>-Z</em> spatial measurement</li>
 </ul>
+
+<pre><code class="r">
+dt &lt;- DT  ### just a copy to experiment
+
+# First, make `feature.name` a factor:
+dt[, `:=`(feature, factor(dt$feature.name))]
+dt[, `:=`(activity, factor(dt$activity.name))]
+
+#### 1: Is the feature from the Time domain or the Frequency domain?
+levels &lt;- matrix(1:2, nrow = 2)
+logical &lt;- matrix(c(grepl(&quot;^t&quot;, dt$feature), grepl(&quot;^f&quot;, dt$feature)), ncol = 2)
+dt$Domain &lt;- factor(logical %*% levels, labels = c(&quot;Time&quot;, &quot;Freq&quot;))
+
+
+#### 2: Was the feature measured on Accelerometer or Gyroscope?
+levels &lt;- matrix(1:2, nrow = 2)
+logical &lt;- matrix(c(grepl(&quot;Acc&quot;, dt$feature), grepl(&quot;Gyro&quot;, dt$feature)), ncol = 2)
+dt$Instrument &lt;- factor(logical %*% levels, labels = c(&quot;Accelerometer&quot;, &quot;Gyroscope&quot;))
+
+
+#### 3: Was the Acceleration due to Gravity or Body (other force)?
+levels &lt;- matrix(1:2, nrow = 2)
+logical &lt;- matrix(c(grepl(&quot;BodyAcc&quot;, dt$feature), grepl(&quot;GravityAcc&quot;, dt$feature)), 
+    ncol = 2)
+dt$Acceleration &lt;- factor(logical %*% levels, labels = c(NA, &quot;Body&quot;, &quot;Gravity&quot;))
+
+
+#### 4: The statistics - mean and std?
+logical &lt;- matrix(c(grepl(&quot;mean()&quot;, dt$feature), grepl(&quot;std()&quot;, dt$feature)), 
+    ncol = 2)
+dt$Statistic &lt;- factor(logical %*% levels, labels = c(&quot;Mean&quot;, &quot;SD&quot;))
+
+#### 5, 6: Features on One category - &#39;Jerk&#39;, &#39;Magnitude&#39;
+dt$Jerk &lt;- factor(grepl(&quot;Jerk&quot;, dt$feature), labels = c(NA, &quot;Jerk&quot;))
+dt$Magnitude &lt;- factor(grepl(&quot;Mag&quot;, dt$feature), labels = c(NA, &quot;Magnitude&quot;))
+
+#### 7 Axial variables, 3-D:
+levels &lt;- matrix(1:3, 3)
+logical &lt;- matrix(c(grepl(&quot;-X&quot;, dt$feature), grepl(&quot;-Y&quot;, dt$feature), grepl(&quot;-Z&quot;, 
+    dt$feature)), ncol = 3)
+dt$Axis &lt;- factor(logical %*% levels, labels = c(NA, &quot;X&quot;, &quot;Y&quot;, &quot;Z&quot;))
+</code></pre>
+
+<pre><code class="r">####################### FINALLY, CREATE THE TIDY DATASET #######################
+
+setkey(dt, subject, activity, Domain, Acceleration, Instrument, Jerk, Magnitude, 
+    Statistic, Axis)
+TIDY &lt;- dt[, list(count = .N, average = mean(value)), by = key(dt)]
+
+head(TIDY)
+</code></pre>
+
+<pre><code>##    subject activity Domain Acceleration Instrument Jerk Magnitude
+## 1:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 2:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 3:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 4:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 5:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 6:       1   LAYING   Time           NA  Gyroscope   NA        NA
+##    Statistic Axis count  average
+## 1:      Mean    X    50 -0.01655
+## 2:      Mean    Y    50 -0.06449
+## 3:      Mean    Z    50  0.14869
+## 4:        SD    X    50 -0.87354
+## 5:        SD    Y    50 -0.95109
+## 6:        SD    Z    50 -0.90828
+</code></pre>
+
+<pre><code class="r">
+# key(TIDY)
+
+############################## AND SAVE THE THING ##############################
+f &lt;- file.path(&quot;.&quot;, &quot;TIDY_HumanActivity.txt&quot;)
+write.table(TIDY, f, quote = FALSE, sep = &quot;\t&quot;, row.names = FALSE)
+f &lt;- file.path(&quot;.&quot;, &quot;TIDY_HumanActivity.csv&quot;)
+write.csv(TIDY, f, quote = FALSE, row.names = FALSE)
+</code></pre>
 
 </body>
 

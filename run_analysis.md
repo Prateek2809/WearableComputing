@@ -2,12 +2,16 @@ run_analysis, markdown version
 ========================================================
 
 This is th markdown version of the `run_analysis.R` script. It's here for 
-convenience - it may be easier to look at this to get a feel for what's invovled
+convenience - it may be easier to look at this to get a feel for what's involved
 in this project than to read and run the script right away.
 
 ### Step 0: Read in the data 
 Assume the data have been downloaded into the current folder. If not, see
 `downloadData.R` on how to do this
+
+
+
+
 
 ```r
 path <- file.path("./", "UCI HAR Dataset")
@@ -68,11 +72,10 @@ DT.test <- data.table(df)
 ```
 
 
-
-
 ### Step 1: Merge the training and the test sets to create one data set.
 
 ```r
+library(data.table)
 # subject IDs:
 DT.All.subject.IDs <- rbind(DT.subject.ID.Train, DT.subject.ID.Test)
 setnames(DT.All.subject.IDs, "V1", "subject")  #10, 299 total subjects
@@ -92,7 +95,7 @@ DT.All <- cbind(DT.All, DT.All.labels)
 ################### good! this is the merged dataset we want ###################
 ```
 
-We have `10,299` observations and `563` variables in the meged dataset. The 
+We have `10,299` observations and `563` variables in the merged dataset. The 
 first variable in `DT.All` is `subject` (ID) and the last variable is the 
 `activity.label` (a number 1-6 that represents an activity). 
 
@@ -230,13 +233,14 @@ str(result)
 ```
 
 
-### Step 3. Uses descriptive activity names to name the activities in the data set
-So far, our activity labels were some not-very-informative-to-the-unitiated 
+### Step 3. Use descriptive activity names to name the activities in the data set
+So far, our activity labels were some not-very-informative-to-the-initiated 
 integers. We now set the more natural names for these labels. 
 `activity_labels.txt` contains such 'natural' names: 
 
 
 ```r
+path <- file.path("./", "UCI HAR Dataset")
 DT.activity.names <- fread(file.path(path, "activity_labels.txt"))
 setnames(DT.activity.names, names(DT.activity.names), c("activity.label", "activity.name"))
 DT.activity.names
@@ -329,13 +333,100 @@ tail(DT, n = 10)
 
 ### Step 5: Create a second, independent tidy data set with the average of each variable for each activity and each subject.
 
-We will be looking at features and selecting observations based on
-- wheather the feature comes from the *frequency* or the *time* domain
-- wheather it comes from the *Accelerometer* or the *Gyroscope* (which instrument)
-- wheather the acceleration is due to *Gravity* or *Body*
-- wheather the feature variable has *"mean"* or *"std"* in its name
-- wheather the feature variable has *"Jerk"* or *"Mag"* (magnitude) in its name
-- wheather it is an *-X*, *-Y*, or *-Z* spatial measurement
+Before computing the means, we will create a few variables based on the features.
+In particular, we will be selecting observations based on:
 
+- whether the feature comes from the *frequency* or the *time* domain
+- whether the feature was measured with the *Accelerometer* or the *Gyroscope* (which instrument)
+- whether the acceleration is due to *Gravity* or *Body*
+- whether the feature variable has *"mean"* or *"std"* in its name
+- whether the feature variable has *"Jerk"* or *"Mag"* (magnitude) in its name
+- whether it is an *-X*, *-Y*, or *-Z* spatial measurement
+
+
+```r
+
+dt <- DT  ### just a copy to experiment
+
+# First, make `feature.name` a factor:
+dt[, `:=`(feature, factor(dt$feature.name))]
+dt[, `:=`(activity, factor(dt$activity.name))]
+
+#### 1: Is the feature from the Time domain or the Frequency domain?
+levels <- matrix(1:2, nrow = 2)
+logical <- matrix(c(grepl("^t", dt$feature), grepl("^f", dt$feature)), ncol = 2)
+dt$Domain <- factor(logical %*% levels, labels = c("Time", "Freq"))
+
+
+#### 2: Was the feature measured on Accelerometer or Gyroscope?
+levels <- matrix(1:2, nrow = 2)
+logical <- matrix(c(grepl("Acc", dt$feature), grepl("Gyro", dt$feature)), ncol = 2)
+dt$Instrument <- factor(logical %*% levels, labels = c("Accelerometer", "Gyroscope"))
+
+
+#### 3: Was the Acceleration due to Gravity or Body (other force)?
+levels <- matrix(1:2, nrow = 2)
+logical <- matrix(c(grepl("BodyAcc", dt$feature), grepl("GravityAcc", dt$feature)), 
+    ncol = 2)
+dt$Acceleration <- factor(logical %*% levels, labels = c(NA, "Body", "Gravity"))
+
+
+#### 4: The statistics - mean and std?
+logical <- matrix(c(grepl("mean()", dt$feature), grepl("std()", dt$feature)), 
+    ncol = 2)
+dt$Statistic <- factor(logical %*% levels, labels = c("Mean", "SD"))
+
+#### 5, 6: Features on One category - 'Jerk', 'Magnitude'
+dt$Jerk <- factor(grepl("Jerk", dt$feature), labels = c(NA, "Jerk"))
+dt$Magnitude <- factor(grepl("Mag", dt$feature), labels = c(NA, "Magnitude"))
+
+#### 7 Axial variables, 3-D:
+levels <- matrix(1:3, 3)
+logical <- matrix(c(grepl("-X", dt$feature), grepl("-Y", dt$feature), grepl("-Z", 
+    dt$feature)), ncol = 3)
+dt$Axis <- factor(logical %*% levels, labels = c(NA, "X", "Y", "Z"))
+```
+
+
+
+
+
+```r
+####################### FINALLY, CREATE THE TIDY DATASET #######################
+
+setkey(dt, subject, activity, Domain, Acceleration, Instrument, Jerk, Magnitude, 
+    Statistic, Axis)
+TIDY <- dt[, list(count = .N, average = mean(value)), by = key(dt)]
+
+head(TIDY)
+```
+
+```
+##    subject activity Domain Acceleration Instrument Jerk Magnitude
+## 1:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 2:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 3:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 4:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 5:       1   LAYING   Time           NA  Gyroscope   NA        NA
+## 6:       1   LAYING   Time           NA  Gyroscope   NA        NA
+##    Statistic Axis count  average
+## 1:      Mean    X    50 -0.01655
+## 2:      Mean    Y    50 -0.06449
+## 3:      Mean    Z    50  0.14869
+## 4:        SD    X    50 -0.87354
+## 5:        SD    Y    50 -0.95109
+## 6:        SD    Z    50 -0.90828
+```
+
+```r
+
+# key(TIDY)
+
+############################## AND SAVE THE THING ##############################
+f <- file.path(".", "TIDY_HumanActivity.txt")
+write.table(TIDY, f, quote = FALSE, sep = "\t", row.names = FALSE)
+f <- file.path(".", "TIDY_HumanActivity.csv")
+write.csv(TIDY, f, quote = FALSE, row.names = FALSE)
+```
 
 

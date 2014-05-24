@@ -117,27 +117,67 @@ head(DT, n=10); tail(DT, n=10)
 ############## TODO .... PICKUP HERE.... ############
 
 
+### delete everything in the workspace and just leave DT
+l = ls()
+rm(list=l[l != "DT"])
+rm(l)
 
-
-#### 6. Final thoughts?
-
-
+### make a copy to experiment
+dt <- DT
 
 
 ###################### EXPERIMENTAL
 
-# We will be looking at features 
+# We will be looking at features. First, make feature.name a factor: 
 
-DT[ ,activity :=  factor(DT$activity.name)]
-DT[ ,feature := factor(DT$feature.name)]
-
-selector <- function(regex) {
-    grepl(regex, feature)
-}
-
-y <- matrix(1:2, nrow=2)
-x <- matrix(c(selector("^t"), selector("^f")), ncol = nrow(y))
+dt[ ,feature := factor(dt$feature.name)]
 
 
+#### 1: Is the feature from Time domain or Frequency domain?
+levels <- matrix(1:2, nrow=2)
+logical <- matrix(c(grepl("^t", dt$feature), grepl("^f", dt$feature)), ncol = 2)
+dt$Domain <- factor(logical %*% levels, labels = c("Time", "Freq"))
 
 
+#### 2: Was the feature measured on Accelerometer or Gyroscope?
+levels <- matrix(1:2, nrow=2)
+logical <- matrix(c(grepl("Acc", dt$feature), grepl("Gyro", dt$feature)), ncol = 2)
+dt$Instrument <- factor(logical %*% levels, labels = c("Accelerometer", "Gyroscope"))
+
+
+#### 3: Was the Acceleration due to Gravity or Body (other force)?
+levels <- matrix(1:2, nrow=2)
+logical <- matrix(c(grepl("BodyAcc", dt$feature), grepl("GravityAcc", dt$feature)), ncol = 2)
+dt$Acceleration <- factor(logical %*% levels, labels = c(NA, "Body", "Gravity"))
+
+
+#### 4: The statistics - mean and std?
+logical <- matrix(c(grepl("mean()", dt$feature), grepl("std()", dt$feature)), ncol = 2)
+dt$Statistic <- factor(logical %*% levels, labels = c("Mean", "SD"))
+
+#### 5, 6: Features on One category - "Jerk", "Magnitude"
+dt$Jerk <- factor( grepl("Jerk", dt$feature),labels = c(NA, "Jerk"))
+dt$Magnitude <- factor(grepl("Mag", dt$feature), labels = c(NA, "Magnitude"))
+
+#### 7 Axial variables, 3-D:
+levels <- matrix(1:3, 3)
+logical <- matrix(c(grepl("-X", dt$feature), grepl("-Y", dt$feature), grepl("-Z", dt$feature)), ncol=3)
+dt$Axis <- factor(logical %*% levels, labels = c(NA, "X", "Y", "Z"))
+
+
+################################################################################
+################# FINALLY, CREATE A TIDY DATASET #########################
+
+dt[ ,activity :=  factor(dt$activity.name)]
+setkey(dt, subject, activity, Domain, Acceleration, Instrument, 
+       Jerk, Magnitude, Statistic, Axis)
+TIDY <- dt[, list(count = .N, average = mean(value)), by = key(dt)]
+
+
+key(TIDY)
+
+################# AND SAVE THE THING
+f <- file.path(".", "TIDY_HumanActivity.txt")
+write.table(TIDY, f, quote = FALSE, sep = "\t", row.names = FALSE)
+f <- file.path(".", "TIDY_HumanActivity.csv")
+write.csv(TIDY, f, quote = FALSE, row.names = FALSE)
